@@ -1,0 +1,20 @@
+#audioListener {
+  height: 250px;
+  width: 250px;
+  border-radius: 50%;
+  border: 1px solid black;
+  background: transparent;
+  position: relative;
+  margin: auto;
+  top: 100px;
+}
+
+#audioVector {
+  position: absolute;
+  top: 125px;
+  left: 125px;
+  width: 1px;
+  border: 2px solid red;
+  height: 100px;
+  transform-origin: top center;
+}

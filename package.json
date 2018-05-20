@@ -1,0 +1,22 @@
+{
+  "name": "AwdedTrainer",
+  "version": "0.0.1",
+  "description": "Machine Learning trainer for Awded",
+  "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Awded/AwdedTrainer.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-packager . AwdedTrainer --overwrite --icon=icon.ico",
+    "debug": "electron . debug"
+  },
+  "author": "Awded",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^1.8.6",
+    "electron-packager": "^12.1.0"
+  },
+  "dependencies": {}
+}

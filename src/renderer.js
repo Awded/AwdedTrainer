@@ -1,15 +1,14 @@
 const electron = require("electron");
 const path = require("path");
 const fs = require("fs");
+const Vector = require("./Vector.js");
+const utils = require("./utils.js");
 
 const audioCtx = new OfflineAudioContext();
 
 const SoundsPath = path.join(__dirname, "/Sounds");
 
-const Vector = require("./Vector.js");
-const Buffer = require("./Buffer.js");
-
-let sounds = {};
+let sounds = loadAudio();
 
 function playAudio(vectorFrom, vectorTo, fileName) {
   const source = audioCtx.createMediaElementSource(new Audio(fileName));
@@ -56,74 +55,6 @@ function playAudio(vectorFrom, vectorTo, fileName) {
   randomizeFilter(ambient, ambientGain, ambientFilter, ambientShaper);
 
   ambientGain.connect(merger);
-}
-
-function randomizeFilters(input, output, filter, shaper) {
-  switch (Math.ceil(randomNumber(2))) {
-    case 0: //filter
-      input.connect(filter);
-      filter.connect(output);
-      break;
-    case 1: //shaper
-      input.connect(shaper);
-      shaper.connect(output);
-      break;
-    case 2: //filter && shaper
-      input.connect(filter);
-      filter.connect(shaper);
-      shaper.connect(output);
-      break;
-  }
-}
-
-function mergeAudio(buffers) {
-  let output = audioCtx.createBuffer(1, 44100 * maxDuration(buffers), 44100);
-
-  buffers.map(buffer => {
-    for (let i = buffer.getChannelData(0).length - 1; i >= 0; i--) {
-      output.getChannelData(0)[i] += buffer.getChannelData(0)[i];
-    }
-  });
-
-  return output;
-}
-
-function maxDuration(buffers) {
-  return Math.max.apply(Math, buffers.map(buffer => buffer.duration));
-}
-
-function setArrow(vector) {
-  let audioVector = document.querySelector("#audioVector");
-  audioVector.style.transform = `rotateX(${vector.angle.x}deg) rotateZ(${
-    vector.angle.y
-  }deg)`;
-  audioVector.style.height = `${vector.magnitude * 10}px`;
-}
-
-function loadAudio() {
-  let audioFolders = {};
-  fs
-    .readdirSync(themesPath)
-    .filter(fileName => {
-      return fileName.indexOf(".") == -1;
-    })
-    .forEach(folderName => {
-      let files = fs
-        .readdirSync(path.join(__dirname, folderName))
-        .filter(folderName => {
-          return folderName.indexOf(".") != -1;
-        });
-      files.forEach(fileName => {
-        audioFolders[folderName] = audioFolders[folderName] || [];
-        audioFolders[folderName].push(fileName);
-      });
-    });
-
-  return audioFolders;
-}
-
-function randomNumber(max) {
-  return Math.floor(Math.random() * (max + 1));
 }
 
 let vector = new Vector(

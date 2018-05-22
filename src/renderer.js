@@ -3,25 +3,35 @@ const path = require("path");
 const fs = require("fs");
 const Vector = require("./Vector.js");
 const utils = require("./utils.js");
+const AmbientFolders = ["Ambient"];
+const TrainFolders = ["Footsteps", "Noise", "Shots", "Other"];
 
-const audioCtx = new OfflineAudioContext();
+const audioCtx = new AudioContext(); //utils.createOfflineAudioContext(2, 5, 44100);
 
-const SoundsPath = path.join(__dirname, "/Sounds");
+const SoundsPath = path.join(__dirname, "../Sounds");
 
-let sounds = loadAudio();
+let sounds = utils.loadAudio();
 
-function playAudio(vectorFrom, vectorTo, fileName) {
-  const source = audioCtx.createMediaElementSource(new Audio(fileName));
-  const sourcePanner = audioCtx.createsourcePanner();
+document.querySelector("#test").addEventListener("click", () => {
+  playAudio(
+    randomVector,
+    randomVector,
+    randomAudio(TrainFolders[utils.randomNumber(TrainFolders.length - 1)])
+  );
+});
+
+async function playAudio(vectorFrom, vectorTo, filePath) {
+  const source = audioCtx.createMediaElementSource(new Audio(filePath));
+  const sourcePanner = audioCtx.createPanner();
   const sourceFilter = audioCtx.createBiquadFilter();
-  const sourceShaper = audioCtx.createWaveShaper();
 
-  const ambient = mergeAudio(getAmbientNoises());
+  const ambientBuffers = await utils.buffersFromFile(getAmbientNoises());
+
+  const ambient = utils.mergeAudio(ambientBuffers);
   const ambientGain = audioCtx.createGain();
   const ambientFilter = audioCtx.createBiquadFilter();
-  const ambientShaper = audioCtx.createWaveShaper();
 
-  ambientGain.gain.value = randomNumber(4) + 0.05;
+  ambientGain.gain.value = utils.randomNumber(4) - 2;
 
   //When downsampled:
   //Left: 0, 2
@@ -46,19 +56,50 @@ function playAudio(vectorFrom, vectorTo, fileName) {
 
   //TODO: every time we output FFT make sure we sample and store the current vector from sourcePanner!
 
+  utils.randomizeFilter(sourceFilter);
+  utils.randomizeFilter(ambientFilter);
+
   source.connect(sourcePanner);
-  sourcePanner.connect(merger);
+  sourcePanner.connect(sourceFilter);
+  sourceFilter.connect(merger);
 
   ambientSource.connect(ambientGain);
-
-  randomizeFilters(source, sourcePanner, sourceFilter, sourceShaper);
-  randomizeFilter(ambient, ambientGain, ambientFilter, ambientShaper);
-
+  ambientGain.connect(ambientFilter);
   ambientGain.connect(merger);
 }
 
-let vector = new Vector(
-  randomNumber(20) - 10,
-  randomNumber(20) - 10,
-  randomNumber(20) - 10
-);
+function setArrow(vector) {
+  let audioVector = document.querySelector("#audioVector");
+  audioVector.style.transform = `rotateX(${vector.angle.x}deg) rotateZ(${
+    vector.angle.y
+  }deg)`;
+  audioVector.style.height = `${vector.magnitude * 10}px`;
+}
+
+function randomAudio(folderName) {
+  let soundFolder = sounds[folderName] || {};
+  let fileName = soundFolder[utils.randomNumber(soundFolder.length - 1)];
+  return fileName ? path.join(SoundsPath, folderName + "/" + fileName) : null;
+}
+
+function getAmbientNoises() {
+  let maxAmbient = 4;
+  let ambientNoises = [];
+  while (ambientNoises.length < maxAmbient) {
+    let ambientNoise = randomAudio(
+      AmbientFolders[utils.randomNumber(AmbientFolders.length - 1)]
+    );
+    if (ambientNoise && ambientNoises.indexOf(ambientNoise) == -1) {
+      ambientNoises.push(ambientNoise);
+    }
+  }
+  return ambientNoises;
+}
+
+function randomVector() {
+  return new Vector(
+    utils.randomNumber(20) - 10,
+    utils.randomNumber(20) - 10,
+    utils.randomNumber(20) - 10
+  );
+}

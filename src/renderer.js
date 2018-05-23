@@ -6,11 +6,12 @@ const utils = require("./utils.js");
 
 const SoundsPath = path.join(__dirname, "../Sounds");
 
-const endTime = 10;
-const ambientGainMultiplier = 0;
+const endTime = 5;
+const fftFPS = 60;
+const ambientGainMultiplier = 0.2;
 const AmbientFolders = ["Ambient", "Noise"];
 const TrainFolders = ["Footsteps", "Shots", "Other"];
-const audioCtx = new AudioContext(); //utils.createOfflineAudioContext(2, 5, 44100);
+const audioCtx = utils.createOfflineAudioContext(2, 5, 44100);
 
 let sounds = utils.loadAudio();
 
@@ -23,21 +24,20 @@ document.querySelector("#test").addEventListener("click", () => {
 });
 
 async function playAudio(vectorFrom, vectorTo, filePath) {
-  console.log(filePath);
   const sourceBuffer = await utils.buffersFromFiles([filePath]);
   const source = audioCtx.createBufferSource();
   const sourcePanner = audioCtx.createPanner();
   const sourceFilter = audioCtx.createBiquadFilter();
   const sourceSplitter = audioCtx.createChannelSplitter(2);
+
   const ambientPaths = getAmbientNoises();
-  console.log(ambientPaths);
   const ambientBuffers = await utils.buffersFromFiles(ambientPaths);
-  console.log();
   const ambient = audioCtx.createBufferSource();
   const ambientGain = audioCtx.createGain();
   const ambientFilter = audioCtx.createBiquadFilter();
   const ambientSplitter = audioCtx.createChannelSplitter(2);
 
+  const analyser = audioCtx.createAnalyser();
   const merger = audioCtx.createChannelMerger(4);
 
   source.loop = true;
@@ -55,9 +55,6 @@ async function playAudio(vectorFrom, vectorTo, filePath) {
   sourcePanner.positionY.setValueAtTime(vectorFrom.y, 0);
   sourcePanner.positionZ.setValueAtTime(vectorFrom.z, 0);
 
-  console.log(vectorFrom);
-  console.log(vectorTo);
-
   if (Math.random() <= 0.5) {
     sourcePanner.positionX.linearRampToValueAtTime(vectorTo.x, endTime);
     sourcePanner.positionY.linearRampToValueAtTime(vectorTo.y, endTime);
@@ -67,8 +64,6 @@ async function playAudio(vectorFrom, vectorTo, filePath) {
     sourcePanner.positionY.exponentialRampToValueAtTime(vectorTo.y, endTime);
     sourcePanner.positionZ.exponentialRampToValueAtTime(vectorTo.z, endTime);
   }
-
-  //TODO: every time we output FFT make sure we sample and store the current vector from sourcePanner!
 
   utils.randomizeFilter(sourceFilter);
   utils.randomizeFilter(ambientFilter);
@@ -91,15 +86,21 @@ async function playAudio(vectorFrom, vectorTo, filePath) {
     ambientSplitter.connect(merger, 0, 2);
     ambientSplitter.connect(merger, 1, 3);
   }
-  merger.connect(audioCtx.destination);
 
-  audioCtx.resume();
+  merger.connect(analyser);
+  analyser.connect(audioCtx.destination);
+
+  analyser.fftSize = 128;
+
+  utils.suspendAudioContextEvery(audioCtx, 1 / fftFPS, time => {
+    let fftData = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(fftData);
+  });
 
   ambient.start();
   source.start();
 
-  window.ambient = ambient;
-  window.source = source;
+  await audioCtx.startRendering();
 }
 
 function setArrow(vector) {
@@ -132,8 +133,8 @@ function getAmbientNoises() {
 
 function randomVector() {
   return new Vector({
-    x: (utils.randomNumber(200) - 100) / 10,
-    y: (utils.randomNumber(200) - 100) / 10,
-    z: (utils.randomNumber(200) - 100) / 10
+    x: (utils.randomNumber(49) + 1) * (Math.random() > 0.5 ? -1 : 1) / 5,
+    y: (utils.randomNumber(49) + 1) * (Math.random() > 0.5 ? -1 : 1) / 5,
+    z: (utils.randomNumber(49) + 1) * (Math.random() > 0.5 ? -1 : 1) / 5
   });
 }

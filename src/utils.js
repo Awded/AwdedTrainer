@@ -38,6 +38,20 @@ utils.readFilePromise = async file => {
   });
 };
 
+utils.suspendAudioContextAt = (audioCtx, suspendTime, callback) => {
+  audioCtx.suspend(suspendTime).then(() => {
+    callback(suspendTime);
+    audioCtx.resume();
+  });
+};
+
+utils.suspendAudioContextEvery = (audioCtx, suspendEvery, callback) => {
+  let duration = audioCtx.length / 44100;
+  for (let i = 0; i <= duration; i += suspendEvery) {
+    utils.suspendAudioContextAt(audioCtx, suspendEvery * i, callback);
+  }
+};
+
 utils.arrayBufferFromBuffer = buffer => {
   return buffer.buffer.slice(
     buffer.byteOffset,

@@ -3,46 +3,60 @@ const path = require("path");
 const fs = require("fs");
 const Vector = require("./Vector.js");
 const utils = require("./utils.js");
-const AmbientFolders = ["Ambient"];
-const TrainFolders = ["Footsteps", "Noise", "Shots", "Other"];
-
-const audioCtx = new AudioContext(); //utils.createOfflineAudioContext(2, 5, 44100);
 
 const SoundsPath = path.join(__dirname, "../Sounds");
+
+const endTime = 10;
+const ambientGainMultiplier = 0;
+const AmbientFolders = ["Ambient", "Noise"];
+const TrainFolders = ["Footsteps", "Shots", "Other"];
+const audioCtx = new AudioContext(); //utils.createOfflineAudioContext(2, 5, 44100);
 
 let sounds = utils.loadAudio();
 
 document.querySelector("#test").addEventListener("click", () => {
   playAudio(
-    randomVector,
-    randomVector,
+    randomVector(),
+    randomVector(),
     randomAudio(TrainFolders[utils.randomNumber(TrainFolders.length - 1)])
   );
 });
 
 async function playAudio(vectorFrom, vectorTo, filePath) {
-  const source = audioCtx.createMediaElementSource(new Audio(filePath));
+  console.log(filePath);
+  const sourceBuffer = await utils.buffersFromFiles([filePath]);
+  const source = audioCtx.createBufferSource();
   const sourcePanner = audioCtx.createPanner();
   const sourceFilter = audioCtx.createBiquadFilter();
-
-  const ambientBuffers = await utils.buffersFromFile(getAmbientNoises());
-
-  const ambient = utils.mergeAudio(ambientBuffers);
+  const sourceSplitter = audioCtx.createChannelSplitter(2);
+  const ambientPaths = getAmbientNoises();
+  console.log(ambientPaths);
+  const ambientBuffers = await utils.buffersFromFiles(ambientPaths);
+  console.log();
+  const ambient = audioCtx.createBufferSource();
   const ambientGain = audioCtx.createGain();
   const ambientFilter = audioCtx.createBiquadFilter();
+  const ambientSplitter = audioCtx.createChannelSplitter(2);
 
-  ambientGain.gain.value = utils.randomNumber(4) - 2;
+  const merger = audioCtx.createChannelMerger(4);
+
+  source.loop = true;
+  source.buffer = sourceBuffer[0];
+  ambient.loop = true;
+  ambient.buffer = utils.mergeAudio(ambientBuffers);
 
   //When downsampled:
   //Left: 0, 2
   //Right: 1, 3
-  const merger = audioCtx.createChannelMerger(4);
 
   sourcePanner.panningModel = "HRTF";
 
   sourcePanner.positionX.setValueAtTime(vectorFrom.x, 0);
   sourcePanner.positionY.setValueAtTime(vectorFrom.y, 0);
   sourcePanner.positionZ.setValueAtTime(vectorFrom.z, 0);
+
+  console.log(vectorFrom);
+  console.log(vectorTo);
 
   if (Math.random() <= 0.5) {
     sourcePanner.positionX.linearRampToValueAtTime(vectorTo.x, endTime);
@@ -59,13 +73,33 @@ async function playAudio(vectorFrom, vectorTo, filePath) {
   utils.randomizeFilter(sourceFilter);
   utils.randomizeFilter(ambientFilter);
 
+  ambientGain.gain.value = Math.random() * ambientGainMultiplier;
+
   source.connect(sourcePanner);
   sourcePanner.connect(sourceFilter);
-  sourceFilter.connect(merger);
+  sourceFilter.connect(sourceSplitter);
+  sourceSplitter.connect(merger, 0, 0);
+  sourceSplitter.connect(merger, 1, 1);
 
-  ambientSource.connect(ambientGain);
+  ambient.connect(ambientGain);
   ambientGain.connect(ambientFilter);
-  ambientGain.connect(merger);
+  if (ambientFilter.channelCount < 2) {
+    ambientFilter.connect(merger, 0, 2);
+    ambientFilter.connect(merger, 0, 3);
+  } else {
+    ambientFilter.connect(ambientSplitter);
+    ambientSplitter.connect(merger, 0, 2);
+    ambientSplitter.connect(merger, 1, 3);
+  }
+  merger.connect(audioCtx.destination);
+
+  audioCtx.resume();
+
+  ambient.start();
+  source.start();
+
+  window.ambient = ambient;
+  window.source = source;
 }
 
 function setArrow(vector) {
@@ -97,9 +131,9 @@ function getAmbientNoises() {
 }
 
 function randomVector() {
-  return new Vector(
-    utils.randomNumber(20) - 10,
-    utils.randomNumber(20) - 10,
-    utils.randomNumber(20) - 10
-  );
+  return new Vector({
+    x: (utils.randomNumber(200) - 100) / 10,
+    y: (utils.randomNumber(200) - 100) / 10,
+    z: (utils.randomNumber(200) - 100) / 10
+  });
 }

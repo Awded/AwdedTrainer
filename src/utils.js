@@ -33,7 +33,6 @@ utils.readFilePromise = async file => {
       if (err !== null) {
         reject(err);
       }
-      //console.log(data);
       resolve(data);
     });
   });
@@ -46,12 +45,11 @@ utils.arrayBufferFromBuffer = buffer => {
   );
 };
 
-utils.buffersFromFile = async files => {
+utils.buffersFromFiles = async files => {
   let buffers = [];
   await Promise.all(
     files.map(async file => {
       let fileBuffer = await utils.readFilePromise(file);
-      console.log(fileBuffer);
       buffers.push(
         await audioCtx.decodeAudioData(utils.arrayBufferFromBuffer(fileBuffer))
       );
@@ -61,18 +59,14 @@ utils.buffersFromFile = async files => {
 };
 
 utils.mergeAudio = buffers => {
-  console.log(utils.maxDuration(buffers));
-  //TODO: do 10 seconds
-  let output = audioCtx.createBuffer(
-    1,
-    44100 * utils.maxDuration(buffers),
-    44100
-  );
+  let output = audioCtx.createBuffer(1, 44100 * 10, 44100);
+
+  let offset = utils.randomNumber(1000);
 
   buffers.map(buffer => {
     for (let i = output.getChannelData(0).length - 1; i >= 0; i--) {
       output.getChannelData(0)[i] += buffer.getChannelData(0)[
-        i % (buffer.getChannelData(0).length - 1)
+        (i + offset) % (buffer.getChannelData(0).length - 1)
       ];
     }
   });
